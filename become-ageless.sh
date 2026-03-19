@@ -31,10 +31,23 @@ NC='\033[0m'
 AGELESS_VERSION="1.0.0"
 AGELESS_CODENAME="Timeless"
 FLAGRANT=0
+ACCEPT=0
 
-if [[ "${1:-}" == "--flagrant" ]]; then
-    FLAGRANT=1
-fi
+for arg in "$@"; do
+    case "$arg" in
+        --flagrant) FLAGRANT=1 ;;
+        --accept)   ACCEPT=1 ;;
+        *)
+            echo -e "${RED}ERROR:${NC} Unknown argument: $arg"
+            echo ""
+            echo "  Usage: $0 [--flagrant] [--accept]"
+            echo ""
+            echo "  --flagrant  Remove all compliance fig leaves"
+            echo "  --accept    Accept the legal terms non-interactively"
+            exit 1
+            ;;
+    esac
+done
 
 cat << 'BANNER'
 
@@ -94,10 +107,20 @@ if ! grep -qi "debian\|ubuntu" /etc/os-release 2>/dev/null; then
     echo "  non-Debian system would make you the provider of TWO operating"
     echo "  systems, doubling your potential liability under AB 1043."
     echo ""
-    read -rp "  Proceed anyway and accept double the legal risk? [y/N] " confirm
-    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-        echo "  Wise choice. Exiting."
-        exit 0
+    if [[ $ACCEPT -eq 1 ]]; then
+        echo -e "  ${YELLOW}--accept: proceeding despite non-Debian system.${NC}"
+    elif [[ -t 0 ]]; then
+        read -rp "  Proceed anyway and accept double the legal risk? [y/N] " confirm
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            echo "  Wise choice. Exiting."
+            exit 0
+        fi
+    else
+        echo -e "${RED}ERROR:${NC} Non-Debian system detected and no TTY available for confirmation."
+        echo ""
+        echo "  Re-run with --accept to proceed non-interactively:"
+        echo "  curl -fsSL https://agelesslinux.org/become-ageless.sh | sudo bash -s -- --accept"
+        exit 1
     fi
 fi
 
@@ -128,12 +151,29 @@ echo "  6. This is intentional."
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-read -rp "Do you accept these terms and wish to become an OS provider? [y/N] " accept
-if [[ ! "$accept" =~ ^[Yy]$ ]]; then
+if [[ $ACCEPT -eq 1 ]]; then
+    echo -e "${YELLOW}--accept: legal terms accepted non-interactively.${NC}"
+elif [[ -t 0 ]]; then
+    read -rp "Do you accept these terms and wish to become an OS provider? [y/N] " accept
+    if [[ ! "$accept" =~ ^[Yy]$ ]]; then
+        echo ""
+        echo "Installation cancelled. You remain a mere user."
+        echo "The California Attorney General has no business with you today."
+        exit 0
+    fi
+else
     echo ""
-    echo "Installation cancelled. You remain a mere user."
-    echo "The California Attorney General has no business with you today."
-    exit 0
+    echo -e "${RED}ERROR:${NC} No TTY available for interactive confirmation."
+    echo ""
+    echo "  This script requires you to accept legal terms acknowledging that"
+    echo "  you are becoming an operating system provider under Cal. Civ. Code"
+    echo "  § 1798.500(g). In a non-interactive environment (e.g. piped from"
+    echo "  curl), pass --accept to confirm:"
+    echo ""
+    echo "  curl -fsSL https://agelesslinux.org/become-ageless.sh | sudo bash -s -- --accept"
+    echo "  curl -fsSL https://agelesslinux.org/become-ageless.sh | sudo bash -s -- --accept --flagrant"
+    echo ""
+    exit 1
 fi
 
 echo ""
