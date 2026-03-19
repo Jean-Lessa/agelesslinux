@@ -32,18 +32,21 @@ AGELESS_VERSION="1.0.0"
 AGELESS_CODENAME="Timeless"
 FLAGRANT=0
 ACCEPT=0
+PERSISTENT=0
 
 for arg in "$@"; do
     case "$arg" in
-        --flagrant) FLAGRANT=1 ;;
-        --accept)   ACCEPT=1 ;;
+        --flagrant)    FLAGRANT=1 ;;
+        --accept)      ACCEPT=1 ;;
+        --persistent)  PERSISTENT=1 ;;
         *)
             echo -e "${RED}ERROR:${NC} Unknown argument: $arg"
             echo ""
-            echo "  Usage: $0 [--flagrant] [--accept]"
+            echo "  Usage: $0 [--flagrant] [--accept] [--persistent]"
             echo ""
-            echo "  --flagrant  Remove all compliance fig leaves"
-            echo "  --accept    Accept the legal terms non-interactively"
+            echo "  --flagrant    Remove all compliance fig leaves"
+            echo "  --accept      Accept the legal terms non-interactively"
+            echo "  --persistent  Install agelessd daemon (24h birthDate enforcement)"
             exit 1
             ;;
     esac
@@ -84,6 +87,19 @@ if [[ $FLAGRANT -eq 1 ]]; then
     echo ""
     echo "  This mode is intended for devices that will be physically"
     echo "  handed to children."
+fi
+if [[ $PERSISTENT -eq 1 ]]; then
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}  PERSISTENT MODE ENABLED${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "  In addition to the one-time conversion, agelessd will be"
+    echo "  installed — a systemd timer that runs every 24 hours to ensure"
+    echo "  that systemd userdb birthDate fields remain neutralized."
+    echo ""
+    echo "  This guards against package updates, user creation, or desktop"
+    echo "  tools that may attempt to populate age data in the future."
 fi
 echo ""
 
@@ -389,6 +405,218 @@ chmod +x /etc/ageless/age-verification-api.sh
 echo -e "  [${GREEN}✓${NC}] Installed age verification API (nonfunctional, as intended)"
 fi
 
+# ── Neutralize systemd userdb birthDate field ─────────────────────────────
+#
+#    systemd PR #40954 (merged 2026-03-18) added a birthDate field to JSON
+#    user records. This field feeds age data to xdg-desktop-portal for
+#    application-level age gating. We neutralize it for all users.
+#
+#    Drop-in records in /etc/userdb/ shadow NSS, so each record must include
+#    the full set of passwd fields (uid, gid, home, shell) to avoid breaking
+#    user resolution.
+
+echo ""
+echo -e "  ${BOLD}Neutralizing systemd userdb birthDate field...${NC}"
+echo ""
+echo "  systemd PR #40954 (merged 2026-03-18) added a birthDate field to"
+echo "  JSON user records, intended to serve age verification data to"
+echo "  applications via xdg-desktop-portal."
+echo ""
+
+if [[ $FLAGRANT -eq 1 ]]; then
+    AGELESS_MODE="flagrant"
+    BIRTH_DATE_JSON="null"
+else
+    AGELESS_MODE="regular"
+    BIRTH_DATE_JSON='"1970-01-01"'
+fi
+
+mkdir -p /etc/userdb
+USERDB_COUNT=0
+
+while IFS=: read -r username _x uid gid gecos homedir shell; do
+    if [[ $uid -ge 1000 && $uid -lt 65534 ]]; then
+        USERDB_FILE="/etc/userdb/${username}.user"
+
+        # Extract real name from GECOS (first comma-delimited field)
+        realname="${gecos%%,*}"
+
+        if [[ -f "$USERDB_FILE" ]] && command -v python3 &>/dev/null; then
+            # Existing record: merge birthDate while preserving other fields
+            python3 -c '
+import json, sys
+fp, mode = sys.argv[1], sys.argv[2]
+uname, uid, gid, rname, hdir, sh = sys.argv[3:9]
+try:
+    with open(fp) as f: rec = json.load(f)
+except Exception: rec = {}
+rec.update({
+    "userName": uname, "uid": int(uid), "gid": int(gid),
+    "realName": rname, "homeDirectory": hdir, "shell": sh,
+    "disposition": "regular",
+    "birthDate": None if mode == "flagrant" else "1970-01-01"
+})
+with open(fp, "w") as f:
+    json.dump(rec, f, indent=2)
+    f.write("\n")
+' "$USERDB_FILE" "$AGELESS_MODE" \
+              "$username" "$uid" "$gid" "$realname" "$homedir" "$shell"
+        elif [[ -f "$USERDB_FILE" ]]; then
+            echo -e "  [${YELLOW}!${NC}] ${username}: existing ${USERDB_FILE} requires python3 to merge safely, skipping"
+            continue
+        else
+            # New record: complete drop-in with all passwd fields
+            realname_escaped="${realname//\\/\\\\}"
+            realname_escaped="${realname_escaped//\"/\\\"}"
+            printf '{\n  "userName": "%s",\n  "uid": %d,\n  "gid": %d,\n  "realName": "%s",\n  "homeDirectory": "%s",\n  "shell": "%s",\n  "disposition": "regular",\n  "birthDate": %s\n}\n' \
+                "$username" "$uid" "$gid" "$realname_escaped" "$homedir" "$shell" "$BIRTH_DATE_JSON" > "$USERDB_FILE"
+        fi
+
+        chmod 0644 "$USERDB_FILE"
+
+        # Also update via homectl for systemd-homed users (most systems: none)
+        if command -v homectl &>/dev/null; then
+            if [[ $FLAGRANT -eq 1 ]]; then
+                homectl update "$username" --birth-date= 2>/dev/null || true
+            else
+                homectl update "$username" --birth-date=1970-01-01 2>/dev/null || true
+            fi
+        fi
+
+        USERDB_COUNT=$((USERDB_COUNT + 1))
+
+        if [[ $FLAGRANT -eq 1 ]]; then
+            echo -e "  [${RED}✓${NC}] ${username}: birthDate = ${RED}null${NC}"
+        else
+            echo -e "  [${GREEN}✓${NC}] ${username}: birthDate = 1970-01-01"
+        fi
+    fi
+done < /etc/passwd
+
+# Signal userdbd to pick up changes (may not be installed/running)
+if systemctl list-unit-files systemd-userdbd.service &>/dev/null; then
+    systemctl try-reload-or-restart systemd-userdbd.service 2>/dev/null || true
+fi
+
+echo ""
+echo -e "  ${USERDB_COUNT} user(s) neutralized."
+
+# ── Install agelessd persistent daemon (if requested) ─────────────────────
+
+if [[ $PERSISTENT -eq 1 ]]; then
+    echo ""
+    echo -e "  ${BOLD}Installing agelessd persistent daemon...${NC}"
+    echo ""
+
+    cat > /etc/ageless/agelessd << 'AGELESSD_EOF'
+#!/bin/bash
+# ============================================================================
+#  agelessd — Ageless Linux birthDate Neutralization Daemon
+#
+#  Ensures systemd userdb birthDate fields (PR #40954) remain neutralized.
+#  Runs every 24 hours via systemd timer.
+#
+#  SPDX-License-Identifier: Unlicense
+# ============================================================================
+
+set -euo pipefail
+
+MODE="__AGELESS_MODE__"
+
+if [[ "$MODE" == "flagrant" ]]; then
+    BIRTH_DATE_JSON="null"
+else
+    BIRTH_DATE_JSON='"1970-01-01"'
+fi
+
+mkdir -p /etc/userdb
+
+while IFS=: read -r username _x uid gid gecos homedir shell; do
+    if [[ $uid -ge 1000 && $uid -lt 65534 ]]; then
+        USERDB_FILE="/etc/userdb/${username}.user"
+        realname="${gecos%%,*}"
+
+        if [[ -f "$USERDB_FILE" ]] && command -v python3 &>/dev/null; then
+            python3 -c '
+import json, sys
+fp, mode = sys.argv[1], sys.argv[2]
+uname, uid, gid, rname, hdir, sh = sys.argv[3:9]
+try:
+    with open(fp) as f: rec = json.load(f)
+except Exception: rec = {}
+rec.update({
+    "userName": uname, "uid": int(uid), "gid": int(gid),
+    "realName": rname, "homeDirectory": hdir, "shell": sh,
+    "disposition": "regular",
+    "birthDate": None if mode == "flagrant" else "1970-01-01"
+})
+with open(fp, "w") as f:
+    json.dump(rec, f, indent=2)
+    f.write("\n")
+' "$USERDB_FILE" "$MODE" \
+              "$username" "$uid" "$gid" "$realname" "$homedir" "$shell"
+        elif [[ -f "$USERDB_FILE" ]]; then
+            continue
+        else
+            realname_escaped="${realname//\\/\\\\}"
+            realname_escaped="${realname_escaped//\"/\\\"}"
+            printf '{\n  "userName": "%s",\n  "uid": %d,\n  "gid": %d,\n  "realName": "%s",\n  "homeDirectory": "%s",\n  "shell": "%s",\n  "disposition": "regular",\n  "birthDate": %s\n}\n' \
+                "$username" "$uid" "$gid" "$realname_escaped" "$homedir" "$shell" "$BIRTH_DATE_JSON" > "$USERDB_FILE"
+        fi
+
+        chmod 0644 "$USERDB_FILE"
+
+        if command -v homectl &>/dev/null; then
+            if [[ "$MODE" == "flagrant" ]]; then
+                homectl update "$username" --birth-date= 2>/dev/null || true
+            else
+                homectl update "$username" --birth-date=1970-01-01 2>/dev/null || true
+            fi
+        fi
+    fi
+done < /etc/passwd
+
+if systemctl list-unit-files systemd-userdbd.service &>/dev/null; then
+    systemctl try-reload-or-restart systemd-userdbd.service 2>/dev/null || true
+fi
+AGELESSD_EOF
+
+    sed -i "s/__AGELESS_MODE__/$AGELESS_MODE/" /etc/ageless/agelessd
+    chmod +x /etc/ageless/agelessd
+
+    cat > /etc/systemd/system/agelessd.service << 'SVCEOF'
+[Unit]
+Description=Ageless Linux birthDate neutralization (systemd PR #40954)
+Documentation=https://agelesslinux.org
+After=systemd-userdbd.service
+
+[Service]
+Type=oneshot
+ExecStart=/etc/ageless/agelessd
+SVCEOF
+
+    cat > /etc/systemd/system/agelessd.timer << 'TMREOF'
+[Unit]
+Description=Neutralize systemd userdb birthDate fields every 24 hours
+Documentation=https://agelesslinux.org
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=24h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+TMREOF
+
+    systemctl daemon-reload
+    systemctl enable --now agelessd.timer
+
+    echo -e "  [${GREEN}✓${NC}] Installed /etc/ageless/agelessd"
+    echo -e "  [${GREEN}✓${NC}] Installed agelessd.service"
+    echo -e "  [${GREEN}✓${NC}] Installed and started agelessd.timer (24h interval)"
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 
 echo ""
@@ -421,6 +649,16 @@ echo ""
 echo -e "  Files deliberately NOT created:"
 echo -e "    /etc/ageless/age-verification-api.sh ... ${RED}REFUSED${NC}"
 echo ""
+echo -e "  userdb birthDate (systemd PR #40954):"
+echo -e "    /etc/userdb/*.user ..................... ${USERDB_COUNT} user(s) → ${RED}null${NC}"
+if [[ $PERSISTENT -eq 1 ]]; then
+echo ""
+echo -e "  Persistent daemon (agelessd):"
+echo -e "    /etc/ageless/agelessd .................. Neutralization script"
+echo -e "    agelessd.service ....................... systemd oneshot service"
+echo -e "    agelessd.timer ......................... 24-hour enforcement cycle"
+fi
+echo ""
 echo -e "  To revert: ${BOLD}sudo cp /etc/os-release.pre-ageless /etc/os-release${NC}"
 echo ""
 echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -445,6 +683,16 @@ echo -e "    /etc/os-release ................ OS identity (modified)"
 echo -e "    /etc/os-release.pre-ageless .... Original OS identity (backup)"
 echo -e "    /etc/ageless/ab1043-compliance.txt"
 echo -e "    /etc/ageless/age-verification-api.sh"
+echo ""
+echo -e "  userdb birthDate (systemd PR #40954):"
+echo -e "    /etc/userdb/*.user ............. ${USERDB_COUNT} user(s) → 1970-01-01"
+if [[ $PERSISTENT -eq 1 ]]; then
+echo ""
+echo -e "  Persistent daemon (agelessd):"
+echo -e "    /etc/ageless/agelessd .......... Neutralization script"
+echo -e "    agelessd.service ............... systemd oneshot service"
+echo -e "    agelessd.timer ................. 24-hour enforcement cycle"
+fi
 echo ""
 echo -e "  To revert: ${BOLD}sudo cp /etc/os-release.pre-ageless /etc/os-release${NC}"
 echo ""
