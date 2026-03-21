@@ -1,9 +1,9 @@
 #!/bin/bash
 # ============================================================================
 #  become-ageless.sh — Ageless Linux Distribution Conversion Tool
-#  Version 1.0.0
+#  Version 0.0.4
 #
-#  This script converts your existing Debian installation into
+#  This script converts your existing Linux installation into
 #  Ageless Linux, a California-regulated operating system.
 #
 #  By running this script, the person or entity who controls this
@@ -28,7 +28,7 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-AGELESS_VERSION="1.0.0"
+AGELESS_VERSION="0.0.4"
 AGELESS_CODENAME="Timeless"
 FLAGRANT=0
 ACCEPT=0
@@ -39,14 +39,19 @@ for arg in "$@"; do
         --flagrant)    FLAGRANT=1 ;;
         --accept)      ACCEPT=1 ;;
         --persistent)  PERSISTENT=1 ;;
+        --version)
+            echo "become-ageless.sh ${AGELESS_VERSION} (${AGELESS_CODENAME})"
+            exit 0
+            ;;
         *)
             echo -e "${RED}ERROR:${NC} Unknown argument: $arg"
             echo ""
-            echo "  Usage: $0 [--flagrant] [--accept] [--persistent]"
+            echo "  Usage: $0 [--flagrant] [--accept] [--persistent] [--version]"
             echo ""
             echo "  --flagrant    Remove all compliance fig leaves"
             echo "  --accept      Accept the legal terms non-interactively"
             echo "  --persistent  Install agelessd daemon (24h birthDate enforcement)"
+            echo "  --version     Show version and exit"
             exit 1
             ;;
     esac
@@ -116,29 +121,6 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-if ! grep -qi "debian\|ubuntu" /etc/os-release 2>/dev/null; then
-    echo -e "${YELLOW}WARNING:${NC} This does not appear to be a Debian-based system."
-    echo ""
-    echo "  Ageless Linux is a Debian-based distribution. Converting a"
-    echo "  non-Debian system would make you the provider of TWO operating"
-    echo "  systems, doubling your potential liability under AB 1043."
-    echo ""
-    if [[ $ACCEPT -eq 1 ]]; then
-        echo -e "  ${YELLOW}--accept: proceeding despite non-Debian system.${NC}"
-    elif [[ -t 0 ]]; then
-        read -rp "  Proceed anyway and accept double the legal risk? [y/N] " confirm
-        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-            echo "  Wise choice. Exiting."
-            exit 0
-        fi
-    else
-        echo -e "${RED}ERROR:${NC} Non-Debian system detected and no TTY available for confirmation."
-        echo ""
-        echo "  Re-run with --accept to proceed non-interactively:"
-        echo "  curl -fsSL https://agelesslinux.org/become-ageless.sh | sudo bash -s -- --accept"
-        exit 1
-    fi
-fi
 
 echo -e "${BOLD}LEGAL NOTICE${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -209,7 +191,17 @@ fi
 # ── Detect base distro info ──────────────────────────────────────────────────
 
 BASE_NAME=$(grep "^NAME=" /etc/os-release.pre-ageless | cut -d'"' -f2 || echo "Unknown")
-BASE_VERSION=$(grep "^VERSION_ID=" /etc/os-release.pre-ageless | cut -d'"' -f2 || echo "unknown")
+BASE_VERSION=$(grep "^VERSION_ID=" /etc/os-release.pre-ageless | cut -d'"' -f2 || true)
+BASE_ID=$(grep "^ID=" /etc/os-release.pre-ageless | cut -d'=' -f2 | tr -d '"' || echo "linux")
+BASE_ID_LIKE=$(grep "^ID_LIKE=" /etc/os-release.pre-ageless | cut -d'=' -f2 | tr -d '"' || true)
+
+# Build ID_LIKE chain: base ID first, then base's own ID_LIKE ancestry
+# e.g. Nobara (ID=nobara, ID_LIKE=fedora) → "nobara fedora"
+# e.g. Ubuntu (ID=ubuntu, ID_LIKE=debian) → "ubuntu debian"
+# e.g. Arch   (ID=arch, no ID_LIKE)       → "arch"
+AGELESS_ID_LIKE="${BASE_ID}${BASE_ID_LIKE:+ $BASE_ID_LIKE}"
+
+echo -e "  [${GREEN}✓${NC}] Base system: ${BASE_NAME}${BASE_VERSION:+ $BASE_VERSION} (${BASE_ID})"
 
 # ── Write new os-release ─────────────────────────────────────────────────────
 
@@ -224,18 +216,19 @@ else
 fi
 
 cat > /etc/os-release << EOF
-PRETTY_NAME="Ageless Linux ${AGELESS_VERSION} (${AGELESS_CODENAME})"
+PRETTY_NAME="Ageless Linux ${AGELESS_VERSION} (${BASE_NAME}${BASE_VERSION:+ $BASE_VERSION})"
 NAME="Ageless Linux"
 VERSION_ID="${AGELESS_VERSION}"
 VERSION="${AGELESS_VERSION} (${AGELESS_CODENAME})"
 VERSION_CODENAME=${AGELESS_CODENAME,,}
 ID=ageless
-ID_LIKE=debian
-HOME_URL="https://goblincorps.com/ageless-linux.html"
-SUPPORT_URL="https://goblincorps.com/ageless-linux.html#compliance"
-BUG_REPORT_URL="https://goblincorps.com/ageless-linux.html#faq"
+ID_LIKE=${AGELESS_ID_LIKE}
+HOME_URL="https://agelesslinux.org"
+SUPPORT_URL="https://agelesslinux.org"
+BUG_REPORT_URL="https://agelesslinux.org"
 AGELESS_BASE_DISTRO="${BASE_NAME}"
 AGELESS_BASE_VERSION="${BASE_VERSION}"
+AGELESS_BASE_ID="${BASE_ID}"
 AGELESS_AB1043_COMPLIANCE="${COMPLIANCE_STATUS}"
 AGELESS_AGE_VERIFICATION_API="${API_STATUS}"
 AGELESS_AGE_VERIFICATION_STATUS="${VERIFICATION_STATUS}"
@@ -626,7 +619,7 @@ echo ""
 echo -e "  ${BOLD}Conversion complete. FLAGRANT MODE.${NC}"
 echo ""
 echo -e "  You are now running ${CYAN}Ageless Linux ${AGELESS_VERSION} (${AGELESS_CODENAME})${NC}"
-echo -e "  Based on: ${BASE_NAME} ${BASE_VERSION}"
+echo -e "  Based on: ${BASE_NAME}${BASE_VERSION:+ $BASE_VERSION}"
 echo ""
 echo -e "  You are now an ${BOLD}operating system provider${NC} as defined by"
 echo -e "  California Civil Code § 1798.500(g)."
@@ -671,7 +664,7 @@ echo ""
 echo -e "  ${BOLD}Conversion complete.${NC}"
 echo ""
 echo -e "  You are now running ${CYAN}Ageless Linux ${AGELESS_VERSION} (${AGELESS_CODENAME})${NC}"
-echo -e "  Based on: ${BASE_NAME} ${BASE_VERSION}"
+echo -e "  Based on: ${BASE_NAME}${BASE_VERSION:+ $BASE_VERSION}"
 echo ""
 echo -e "  You are now an ${BOLD}operating system provider${NC} as defined by"
 echo -e "  California Civil Code § 1798.500(g)."
