@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================================
 #  become-ageless.sh — Ageless Linux Distribution Conversion Tool
-#  Version 0.0.4
+#  Version 0.0.5
 #
 #  This script converts your existing Linux installation into
 #  Ageless Linux, a California-regulated operating system.
@@ -28,17 +28,23 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-AGELESS_VERSION="0.0.4"
+AGELESS_VERSION="0.0.5"
 AGELESS_CODENAME="Timeless"
+CONF_PATH="/etc/agelesslinux.conf"
+
 FLAGRANT=0
 ACCEPT=0
 PERSISTENT=0
+DRY_RUN=0
+REVERT=0
 
 for arg in "$@"; do
     case "$arg" in
         --flagrant)    FLAGRANT=1 ;;
         --accept)      ACCEPT=1 ;;
         --persistent)  PERSISTENT=1 ;;
+        --dry-run)     DRY_RUN=1 ;;
+        --revert)      REVERT=1 ;;
         --version)
             echo "become-ageless.sh ${AGELESS_VERSION} (${AGELESS_CODENAME})"
             exit 0
@@ -46,16 +52,171 @@ for arg in "$@"; do
         *)
             echo -e "${RED}ERROR:${NC} Unknown argument: $arg"
             echo ""
-            echo "  Usage: $0 [--flagrant] [--accept] [--persistent] [--version]"
+            echo "  Usage: $0 [OPTIONS]"
             echo ""
             echo "  --flagrant    Remove all compliance fig leaves"
             echo "  --accept      Accept the legal terms non-interactively"
             echo "  --persistent  Install agelessd daemon (24h birthDate enforcement)"
+            echo "  --dry-run     Analyze system and show planned actions without modifying"
+            echo "  --revert      Undo a previous Ageless Linux conversion"
             echo "  --version     Show version and exit"
             exit 1
             ;;
     esac
 done
+
+# ── Revert mode ──────────────────────────────────────────────────────────────
+
+if [[ $REVERT -eq 1 ]]; then
+    echo ""
+    echo -e "${BOLD}Ageless Linux Revert Tool v${AGELESS_VERSION}${NC}"
+    echo ""
+
+    if [[ $EUID -ne 0 ]]; then
+        echo -e "${RED}ERROR:${NC} This script must be run as root."
+        echo "  Please run: sudo $0 --revert"
+        exit 1
+    fi
+
+    if [[ ! -f "$CONF_PATH" ]]; then
+        if [[ -f /etc/os-release.pre-ageless ]]; then
+            echo -e "${YELLOW}WARNING:${NC} No /etc/agelesslinux.conf found."
+            echo ""
+            echo "  It appears this system was converted by an older version of"
+            echo "  become-ageless.sh (v0.0.4 or earlier) that did not write a"
+            echo "  configuration file. Automatic revert is not possible."
+            echo ""
+            echo "  To manually revert, run:"
+            echo ""
+            echo "    sudo cp /etc/os-release.pre-ageless /etc/os-release"
+            echo "    sudo rm -f /etc/os-release.pre-ageless"
+            if [[ -f /etc/lsb-release.pre-ageless ]]; then
+                echo "    sudo cp /etc/lsb-release.pre-ageless /etc/lsb-release"
+                echo "    sudo rm -f /etc/lsb-release.pre-ageless"
+            fi
+            echo "    sudo rm -rf /etc/ageless"
+            if [[ -d /etc/userdb ]]; then
+                echo "    sudo rm -rf /etc/userdb"
+            fi
+            if systemctl list-unit-files agelessd.timer &>/dev/null 2>&1; then
+                echo "    sudo systemctl disable --now agelessd.timer"
+                echo "    sudo rm -f /etc/systemd/system/agelessd.service /etc/systemd/system/agelessd.timer"
+                echo "    sudo systemctl daemon-reload"
+            fi
+            if systemctl list-unit-files systemd-userdbd.service &>/dev/null 2>&1; then
+                echo "    sudo systemctl try-reload-or-restart systemd-userdbd.service"
+            fi
+            echo ""
+            echo "  Then fully log out and log back in (or reboot)."
+        else
+            echo "  No Ageless Linux installation found on this system."
+            echo "  (No /etc/agelesslinux.conf and no /etc/os-release.pre-ageless)"
+        fi
+        exit 1
+    fi
+
+    # shellcheck disable=SC1090
+    source "$CONF_PATH"
+
+    echo -e "  Found installation record: Ageless Linux ${AGELESS_VERSION:-unknown}"
+    echo -e "  Installed: ${AGELESS_DATE:-unknown}"
+    if [[ "${AGELESS_FLAGRANT:-0}" == "1" ]]; then
+        echo -e "  Mode: ${RED}flagrant${NC}"
+    else
+        echo -e "  Mode: standard"
+    fi
+    echo ""
+    echo -e "  ${BOLD}Reverting Ageless Linux conversion...${NC}"
+    echo ""
+
+    # Restore os-release
+    if [[ "${AGELESS_BACKED_UP_OS_RELEASE:-0}" == "1" ]] && [[ -f /etc/os-release.pre-ageless ]]; then
+        cp /etc/os-release.pre-ageless /etc/os-release
+        rm -f /etc/os-release.pre-ageless
+        echo -e "  [${GREEN}✓${NC}] Restored /etc/os-release"
+    fi
+
+    # Restore lsb-release
+    if [[ "${AGELESS_BACKED_UP_LSB_RELEASE:-0}" == "1" ]] && [[ -f /etc/lsb-release.pre-ageless ]]; then
+        cp /etc/lsb-release.pre-ageless /etc/lsb-release
+        rm -f /etc/lsb-release.pre-ageless
+        echo -e "  [${GREEN}✓${NC}] Restored /etc/lsb-release"
+    fi
+
+    # Remove agelessd if installed
+    if [[ "${AGELESS_AGELESSD_INSTALLED:-0}" == "1" ]]; then
+        systemctl disable --now agelessd.timer 2>/dev/null || true
+        rm -f /etc/systemd/system/agelessd.service
+        rm -f /etc/systemd/system/agelessd.timer
+        systemctl daemon-reload 2>/dev/null || true
+        echo -e "  [${GREEN}✓${NC}] Removed agelessd service and timer"
+    fi
+
+    # Remove userdb records we created from scratch
+    if [[ -n "${AGELESS_USERDB_CREATED:-}" ]]; then
+        for username in $AGELESS_USERDB_CREATED; do
+            if [[ -f "/etc/userdb/${username}.user" ]]; then
+                rm -f "/etc/userdb/${username}.user"
+                echo -e "  [${GREEN}✓${NC}] Removed /etc/userdb/${username}.user"
+            fi
+        done
+    fi
+
+    # Restore userdb records we backed up before modifying
+    if [[ -n "${AGELESS_USERDB_BACKED_UP:-}" ]]; then
+        for username in $AGELESS_USERDB_BACKED_UP; do
+            if [[ -f "/etc/userdb/${username}.user.pre-ageless" ]]; then
+                mv "/etc/userdb/${username}.user.pre-ageless" "/etc/userdb/${username}.user"
+                echo -e "  [${GREEN}✓${NC}] Restored /etc/userdb/${username}.user from backup"
+            fi
+        done
+    fi
+
+    # Remove /etc/userdb/ if we created it and it's now empty
+    if [[ "${AGELESS_USERDB_DIR_CREATED:-0}" == "1" ]] && [[ -d /etc/userdb ]]; then
+        if [[ -z "$(ls -A /etc/userdb 2>/dev/null)" ]]; then
+            rmdir /etc/userdb
+            echo -e "  [${GREEN}✓${NC}] Removed empty /etc/userdb/"
+        else
+            echo -e "  [${YELLOW}~${NC}] /etc/userdb/ not empty, leaving in place"
+        fi
+    fi
+
+    # Remove /etc/ageless/
+    if [[ -d /etc/ageless ]]; then
+        rm -rf /etc/ageless
+        echo -e "  [${GREEN}✓${NC}] Removed /etc/ageless/"
+    fi
+
+    # Restart userdbd to clear any cached records (safe during revert)
+    if systemctl list-unit-files systemd-userdbd.service &>/dev/null 2>&1; then
+        systemctl try-reload-or-restart systemd-userdbd.service 2>/dev/null || true
+        echo -e "  [${GREEN}✓${NC}] Reloaded systemd-userdbd"
+    fi
+
+    # Remove conf file
+    rm -f "$CONF_PATH"
+    echo -e "  [${GREEN}✓${NC}] Removed $CONF_PATH"
+
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "  ${BOLD}Revert complete.${NC}"
+    echo ""
+    echo -e "  Your system has been restored to ${CYAN}${AGELESS_BASE_NAME:-your original distro}${AGELESS_BASE_VERSION:+ $AGELESS_BASE_VERSION}${NC}."
+    echo ""
+    echo -e "  You are no longer an operating system provider."
+    echo -e "  The California Attorney General has no business with you today."
+    echo ""
+    echo -e "  ${YELLOW}Please fully log out and log back in (or reboot) for all"
+    echo -e "  changes to take effect.${NC}"
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    exit 0
+fi
+
+# ── Banner ───────────────────────────────────────────────────────────────────
 
 cat << 'BANNER'
 
@@ -72,6 +233,9 @@ BANNER
 
 echo -e "${BOLD}Ageless Linux Distribution Conversion Tool v${AGELESS_VERSION}${NC}"
 echo -e "${CYAN}Codename: ${AGELESS_CODENAME}${NC}"
+
+# ── Mode banners ─────────────────────────────────────────────────────────────
+
 if [[ $FLAGRANT -eq 1 ]]; then
     echo ""
     echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -106,6 +270,15 @@ if [[ $PERSISTENT -eq 1 ]]; then
     echo "  This guards against package updates, user creation, or desktop"
     echo "  tools that may attempt to populate age data in the future."
 fi
+if [[ $DRY_RUN -eq 1 ]]; then
+    echo ""
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}  DRY RUN MODE${NC}"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "  No changes will be made. This run will analyze your system"
+    echo "  and show exactly what would happen during a real conversion."
+fi
 echo ""
 
 # ── Preflight checks ────────────────────────────────────────────────────────
@@ -121,6 +294,276 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
+# ── System Analysis ──────────────────────────────────────────────────────────
+
+# Detect base distro (prefer the pre-ageless backup if a previous conversion exists)
+if [[ -f /etc/os-release.pre-ageless ]]; then
+    ANALYSIS_OS_RELEASE="/etc/os-release.pre-ageless"
+else
+    ANALYSIS_OS_RELEASE="/etc/os-release"
+fi
+
+BASE_NAME=$(grep "^NAME=" "$ANALYSIS_OS_RELEASE" | cut -d'"' -f2 || echo "Unknown")
+BASE_VERSION=$(grep "^VERSION_ID=" "$ANALYSIS_OS_RELEASE" | cut -d'"' -f2 || true)
+BASE_ID=$(grep "^ID=" "$ANALYSIS_OS_RELEASE" | cut -d'=' -f2 | tr -d '"' || echo "linux")
+BASE_ID_LIKE=$(grep "^ID_LIKE=" "$ANALYSIS_OS_RELEASE" | cut -d'=' -f2 | tr -d '"' || true)
+
+# Build ID_LIKE chain: base ID first, then base's own ID_LIKE ancestry
+# e.g. Nobara (ID=nobara, ID_LIKE=fedora) → "nobara fedora"
+# e.g. Ubuntu (ID=ubuntu, ID_LIKE=debian) → "ubuntu debian"
+# e.g. Arch   (ID=arch, no ID_LIKE)       → "arch"
+AGELESS_ID_LIKE="${BASE_ID}${BASE_ID_LIKE:+ $BASE_ID_LIKE}"
+
+# Detect display manager
+DM_NAME="unknown"
+if command -v systemctl &>/dev/null; then
+    for dm in sddm gdm gdm3 lightdm lxdm nodm; do
+        if systemctl is-active "${dm}.service" &>/dev/null; then
+            DM_NAME="$dm"
+            break
+        fi
+    done
+fi
+
+# Detect systemd-userdbd
+USERDBD_INSTALLED=0
+USERDBD_ACTIVE=0
+if command -v systemctl &>/dev/null; then
+    if systemctl list-unit-files systemd-userdbd.service &>/dev/null 2>&1; then
+        USERDBD_INSTALLED=1
+        if systemctl is-active systemd-userdbd.service &>/dev/null 2>&1; then
+            USERDBD_ACTIVE=1
+        fi
+    fi
+fi
+
+# Detect /etc/userdb state
+USERDB_DIR_EXISTS=0
+if [[ -d /etc/userdb ]]; then
+    USERDB_DIR_EXISTS=1
+fi
+
+# Enumerate human users and check for existing userdb records
+declare -a HUMAN_USERS=()
+declare -a HUMAN_UIDS=()
+declare -a USERDB_EXISTING=()
+declare -a USERDB_NEW=()
+
+while IFS=: read -r username _x uid gid gecos homedir shell; do
+    if [[ $uid -ge 1000 && $uid -lt 65534 ]]; then
+        HUMAN_USERS+=("$username")
+        HUMAN_UIDS+=("$uid")
+        if [[ -f "/etc/userdb/${username}.user" ]]; then
+            USERDB_EXISTING+=("$username")
+        else
+            USERDB_NEW+=("$username")
+        fi
+    fi
+done < /etc/passwd
+
+# Check for existing birthDate in userdb records
+USERDB_BIRTHDATE_FOUND=0
+for username in "${USERDB_EXISTING[@]+"${USERDB_EXISTING[@]}"}"; do
+    if [[ -f "/etc/userdb/${username}.user" ]]; then
+        if grep -q '"birthDate"' "/etc/userdb/${username}.user" 2>/dev/null; then
+            USERDB_BIRTHDATE_FOUND=1
+            break
+        fi
+    fi
+done
+
+# Check for previous ageless installation
+PREVIOUS_INSTALL=0
+if [[ -f "$CONF_PATH" ]]; then
+    PREVIOUS_INSTALL=1
+fi
+
+# ── Print System Analysis ────────────────────────────────────────────────────
+
+echo -e "${BOLD}SYSTEM ANALYSIS${NC}"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo -e "  Base system:              ${CYAN}${BASE_NAME}${BASE_VERSION:+ $BASE_VERSION}${NC} (${BASE_ID})"
+
+# Display manager
+if [[ "$DM_NAME" == "sddm" ]]; then
+    echo -e "  Display manager:          ${YELLOW}${DM_NAME}${NC} (see warning below)"
+elif [[ "$DM_NAME" != "unknown" ]]; then
+    echo -e "  Display manager:          ${DM_NAME}"
+else
+    echo -e "  Display manager:          ${YELLOW}not detected${NC}"
+fi
+
+# userdbd
+if [[ $USERDBD_INSTALLED -eq 1 ]]; then
+    if [[ $USERDBD_ACTIVE -eq 1 ]]; then
+        echo -e "  systemd-userdbd:          installed, ${GREEN}active${NC}"
+    else
+        echo -e "  systemd-userdbd:          installed, inactive"
+    fi
+else
+    echo -e "  systemd-userdbd:          not installed"
+fi
+
+# /etc/userdb
+if [[ $USERDB_DIR_EXISTS -eq 1 ]]; then
+    userdb_file_count=0
+    for f in /etc/userdb/*.user; do
+        [[ -f "$f" ]] && userdb_file_count=$((userdb_file_count + 1))
+    done
+    echo -e "  /etc/userdb/:             exists (${userdb_file_count} record(s))"
+else
+    echo -e "  /etc/userdb/:             does not exist"
+fi
+
+# Human users
+user_list=""
+for i in "${!HUMAN_USERS[@]}"; do
+    [[ -n "$user_list" ]] && user_list+=", "
+    user_list+="${HUMAN_USERS[$i]} (${HUMAN_UIDS[$i]})"
+done
+echo -e "  Human users:              ${user_list:-none}"
+
+# Existing userdb records for human users
+if [[ ${#USERDB_EXISTING[@]} -gt 0 ]]; then
+    echo -e "  Existing userdb records:  ${YELLOW}${USERDB_EXISTING[*]}${NC}"
+    if [[ $USERDB_BIRTHDATE_FOUND -eq 1 ]]; then
+        echo -e "                            ${YELLOW}(birthDate field detected)${NC}"
+    fi
+else
+    echo -e "  Existing userdb records:  none"
+fi
+
+# Previous install
+if [[ $PREVIOUS_INSTALL -eq 1 ]]; then
+    echo ""
+    echo -e "  ${YELLOW}Previous Ageless Linux installation detected.${NC}"
+    echo -e "  Run ${BOLD}sudo $0 --revert${NC} first, or this will overwrite it."
+fi
+
+echo ""
+
+# ── SDDM Warning ────────────────────────────────────────────────────────────
+
+if [[ "$DM_NAME" == "sddm" ]]; then
+    echo -e "  ${YELLOW}WARNING: SDDM detected${NC}"
+    echo ""
+    echo "  This system uses SDDM as its display manager. Creating userdb"
+    echo "  drop-in records can interfere with SDDM's lock screen password"
+    echo "  verification if applied mid-session. To avoid this:"
+    echo ""
+    echo "    1. After conversion, do NOT lock your screen."
+    echo "    2. Instead, fully log out and log back in (or reboot)."
+    echo "    3. After a fresh login, screen locking will work normally."
+    echo ""
+fi
+
+# ── Print Planned Actions ───────────────────────────────────────────────────
+
+if [[ $FLAGRANT -eq 1 ]]; then
+    PLAN_BIRTHDATE="null"
+else
+    PLAN_BIRTHDATE="1970-01-01"
+fi
+
+echo -e "${BOLD}PLANNED ACTIONS${NC}"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "  The following changes will be made to this system:"
+echo ""
+
+ACTION_NUM=1
+
+# os-release
+if [[ ! -f /etc/os-release.pre-ageless ]]; then
+    printf "  %2d. Back up /etc/os-release -> /etc/os-release.pre-ageless\n" $ACTION_NUM
+    ACTION_NUM=$((ACTION_NUM + 1))
+fi
+printf "  %2d. Rewrite /etc/os-release as Ageless Linux %s\n" $ACTION_NUM "$AGELESS_VERSION"
+ACTION_NUM=$((ACTION_NUM + 1))
+
+# lsb-release
+if [[ -f /etc/lsb-release ]]; then
+    if [[ ! -f /etc/lsb-release.pre-ageless ]]; then
+        printf "  %2d. Back up /etc/lsb-release -> /etc/lsb-release.pre-ageless\n" $ACTION_NUM
+        ACTION_NUM=$((ACTION_NUM + 1))
+    fi
+    printf "  %2d. Rewrite /etc/lsb-release as Ageless Linux %s\n" $ACTION_NUM "$AGELESS_VERSION"
+    ACTION_NUM=$((ACTION_NUM + 1))
+fi
+
+# /etc/ageless
+if [[ $FLAGRANT -eq 1 ]]; then
+    printf "  %2d. Create /etc/ageless/ab1043-compliance.txt (flagrant)\n" $ACTION_NUM
+    ACTION_NUM=$((ACTION_NUM + 1))
+    printf "  %2d. Create /etc/ageless/REFUSAL (machine-readable refusal)\n" $ACTION_NUM
+    ACTION_NUM=$((ACTION_NUM + 1))
+else
+    printf "  %2d. Create /etc/ageless/ab1043-compliance.txt\n" $ACTION_NUM
+    ACTION_NUM=$((ACTION_NUM + 1))
+    printf "  %2d. Create /etc/ageless/age-verification-api.sh (nonfunctional stub)\n" $ACTION_NUM
+    ACTION_NUM=$((ACTION_NUM + 1))
+fi
+
+# userdb
+if [[ $USERDB_DIR_EXISTS -eq 0 ]]; then
+    printf "  %2d. Create /etc/userdb/ directory\n" $ACTION_NUM
+    ACTION_NUM=$((ACTION_NUM + 1))
+fi
+
+for username in "${USERDB_EXISTING[@]+"${USERDB_EXISTING[@]}"}"; do
+    printf "  %2d. Back up /etc/userdb/%s.user -> %s.user.pre-ageless\n" $ACTION_NUM "$username" "$username"
+    ACTION_NUM=$((ACTION_NUM + 1))
+    printf "  %2d. Update /etc/userdb/%s.user (birthDate = %s)\n" $ACTION_NUM "$username" "$PLAN_BIRTHDATE"
+    ACTION_NUM=$((ACTION_NUM + 1))
+done
+
+for username in "${USERDB_NEW[@]+"${USERDB_NEW[@]}"}"; do
+    printf "  %2d. Create /etc/userdb/%s.user (birthDate = %s)\n" $ACTION_NUM "$username" "$PLAN_BIRTHDATE"
+    ACTION_NUM=$((ACTION_NUM + 1))
+done
+
+# agelessd
+if [[ $PERSISTENT -eq 1 ]]; then
+    printf "  %2d. Install /etc/ageless/agelessd (neutralization script)\n" $ACTION_NUM
+    ACTION_NUM=$((ACTION_NUM + 1))
+    printf "  %2d. Install agelessd.service and agelessd.timer (24h enforcement)\n" $ACTION_NUM
+    ACTION_NUM=$((ACTION_NUM + 1))
+fi
+
+# conf
+printf "  %2d. Write %s (installation record)\n" $ACTION_NUM "$CONF_PATH"
+
+echo ""
+echo "  NOTE: systemd-userdbd will NOT be reloaded during this session."
+echo "        Userdb changes take effect after your next login or reboot."
+echo ""
+echo "  To revert all changes later:"
+echo "    sudo become-ageless.sh --revert"
+echo ""
+
+# ── Dry Run Exit ─────────────────────────────────────────────────────────────
+
+if [[ $DRY_RUN -eq 1 ]]; then
+    # Reconstruct the command without --dry-run
+    DRY_RUN_CMD="sudo $0 --accept"
+    [[ $FLAGRANT -eq 1 ]] && DRY_RUN_CMD+=" --flagrant"
+    [[ $PERSISTENT -eq 1 ]] && DRY_RUN_CMD+=" --persistent"
+
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "  ${BOLD}Dry run complete. No changes were made.${NC}"
+    echo ""
+    echo "  To perform the conversion, run without --dry-run:"
+    echo ""
+    echo "    $DRY_RUN_CMD"
+    echo ""
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    exit 0
+fi
+
+# ── Legal Notice ─────────────────────────────────────────────────────────────
 
 echo -e "${BOLD}LEGAL NOTICE${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -178,30 +621,26 @@ echo ""
 echo -e "${GREEN}Converting system to Ageless Linux...${NC}"
 echo ""
 
+# ── Initialize tracking for conf file ────────────────────────────────────────
+
+CONF_BACKED_UP_OS_RELEASE=0
+CONF_BACKED_UP_LSB_RELEASE=0
+CONF_USERDB_DIR_CREATED=0
+CONF_USERDB_CREATED=""
+CONF_USERDB_BACKED_UP=""
+CONF_AGELESSD_INSTALLED=0
+
 # ── Back up original os-release ──────────────────────────────────────────────
 
 BACKUP_PATH="/etc/os-release.pre-ageless"
 if [[ ! -f "$BACKUP_PATH" ]]; then
     cp /etc/os-release "$BACKUP_PATH"
+    CONF_BACKED_UP_OS_RELEASE=1
     echo -e "  [${GREEN}✓${NC}] Backed up original /etc/os-release to $BACKUP_PATH"
 else
+    CONF_BACKED_UP_OS_RELEASE=1
     echo -e "  [${YELLOW}~${NC}] Backup already exists at $BACKUP_PATH (previous conversion?)"
 fi
-
-# ── Detect base distro info ──────────────────────────────────────────────────
-
-BASE_NAME=$(grep "^NAME=" /etc/os-release.pre-ageless | cut -d'"' -f2 || echo "Unknown")
-BASE_VERSION=$(grep "^VERSION_ID=" /etc/os-release.pre-ageless | cut -d'"' -f2 || true)
-BASE_ID=$(grep "^ID=" /etc/os-release.pre-ageless | cut -d'=' -f2 | tr -d '"' || echo "linux")
-BASE_ID_LIKE=$(grep "^ID_LIKE=" /etc/os-release.pre-ageless | cut -d'=' -f2 | tr -d '"' || true)
-
-# Build ID_LIKE chain: base ID first, then base's own ID_LIKE ancestry
-# e.g. Nobara (ID=nobara, ID_LIKE=fedora) → "nobara fedora"
-# e.g. Ubuntu (ID=ubuntu, ID_LIKE=debian) → "ubuntu debian"
-# e.g. Arch   (ID=arch, no ID_LIKE)       → "arch"
-AGELESS_ID_LIKE="${BASE_ID}${BASE_ID_LIKE:+ $BASE_ID_LIKE}"
-
-echo -e "  [${GREEN}✓${NC}] Base system: ${BASE_NAME}${BASE_VERSION:+ $BASE_VERSION} (${BASE_ID})"
 
 # ── Write new os-release ─────────────────────────────────────────────────────
 
@@ -241,6 +680,9 @@ echo -e "  [${GREEN}✓${NC}] Wrote new /etc/os-release"
 if [[ -f /etc/lsb-release ]]; then
     if [[ ! -f /etc/lsb-release.pre-ageless ]]; then
         cp /etc/lsb-release /etc/lsb-release.pre-ageless
+        CONF_BACKED_UP_LSB_RELEASE=1
+    else
+        CONF_BACKED_UP_LSB_RELEASE=1
     fi
     cat > /etc/lsb-release << EOF
 DISTRIB_ID=Ageless
@@ -290,6 +732,12 @@ cat > /etc/ageless/ab1043-compliance.txt << 'EOF'
   The operator of this system invites the California Attorney General
   to enforce the Digital Age Assurance Act against this device.
 
+  To revert this conversion:
+    sudo become-ageless.sh --revert
+
+  To report this noncompliance to the California Attorney General:
+    https://oag.ca.gov/contact/consumer-complaint-against-business-or-company
+
 ═══════════════════════════════════════════════════════════════════════
 EOF
 else
@@ -323,8 +771,8 @@ cat > /etc/ageless/ab1043-compliance.txt << 'EOF'
   any information regarding the age of any user. All users of Ageless
   Linux are, as the name suggests, ageless.
 
-  To restore your previous operating system identity:
-    sudo cp /etc/os-release.pre-ageless /etc/os-release
+  To revert this conversion:
+    sudo become-ageless.sh --revert
 
   To report this noncompliance to the California Attorney General:
     https://oag.ca.gov/contact/consumer-complaint-against-business-or-company
@@ -407,6 +855,11 @@ fi
 #    Drop-in records in /etc/userdb/ shadow NSS, so each record must include
 #    the full set of passwd fields (uid, gid, home, shell) to avoid breaking
 #    user resolution.
+#
+#    NOTE: We do NOT reload systemd-userdbd after creating drop-in records.
+#    Reloading mid-session causes display managers (especially SDDM) to lose
+#    the ability to verify passwords on the lock screen. The drop-in records
+#    are picked up automatically on next boot or login.
 
 echo ""
 echo -e "  ${BOLD}Neutralizing systemd userdb birthDate field...${NC}"
@@ -424,7 +877,11 @@ else
     BIRTH_DATE_JSON='"1970-01-01"'
 fi
 
-mkdir -p /etc/userdb
+if [[ $USERDB_DIR_EXISTS -eq 0 ]]; then
+    mkdir -p /etc/userdb
+    CONF_USERDB_DIR_CREATED=1
+fi
+
 USERDB_COUNT=0
 
 while IFS=: read -r username _x uid gid gecos homedir shell; do
@@ -434,9 +891,16 @@ while IFS=: read -r username _x uid gid gecos homedir shell; do
         # Extract real name from GECOS (first comma-delimited field)
         realname="${gecos%%,*}"
 
-        if [[ -f "$USERDB_FILE" ]] && command -v python3 &>/dev/null; then
-            # Existing record: merge birthDate while preserving other fields
-            python3 -c '
+        if [[ -f "$USERDB_FILE" ]]; then
+            # Back up existing record before modifying
+            if [[ ! -f "${USERDB_FILE}.pre-ageless" ]]; then
+                cp "$USERDB_FILE" "${USERDB_FILE}.pre-ageless"
+            fi
+            CONF_USERDB_BACKED_UP+="${CONF_USERDB_BACKED_UP:+ }${username}"
+
+            if command -v python3 &>/dev/null; then
+                # Existing record: merge birthDate while preserving other fields
+                python3 -c '
 import json, sys
 fp, mode = sys.argv[1], sys.argv[2]
 uname, uid, gid, rname, hdir, sh = sys.argv[3:9]
@@ -453,12 +917,15 @@ with open(fp, "w") as f:
     json.dump(rec, f, indent=2)
     f.write("\n")
 ' "$USERDB_FILE" "$AGELESS_MODE" \
-              "$username" "$uid" "$gid" "$realname" "$homedir" "$shell"
-        elif [[ -f "$USERDB_FILE" ]]; then
-            echo -e "  [${YELLOW}!${NC}] ${username}: existing ${USERDB_FILE} requires python3 to merge safely, skipping"
-            continue
+                  "$username" "$uid" "$gid" "$realname" "$homedir" "$shell"
+            else
+                echo -e "  [${YELLOW}!${NC}] ${username}: existing ${USERDB_FILE} requires python3 to merge safely, skipping"
+                continue
+            fi
         else
             # New record: complete drop-in with all passwd fields
+            CONF_USERDB_CREATED+="${CONF_USERDB_CREATED:+ }${username}"
+
             realname_escaped="${realname//\\/\\\\}"
             realname_escaped="${realname_escaped//\"/\\\"}"
             printf '{\n  "userName": "%s",\n  "uid": %d,\n  "gid": %d,\n  "realName": "%s",\n  "homeDirectory": "%s",\n  "shell": "%s",\n  "disposition": "regular",\n  "birthDate": %s\n}\n' \
@@ -486,13 +953,14 @@ with open(fp, "w") as f:
     fi
 done < /etc/passwd
 
-# Signal userdbd to pick up changes (may not be installed/running)
-if systemctl list-unit-files systemd-userdbd.service &>/dev/null; then
-    systemctl try-reload-or-restart systemd-userdbd.service 2>/dev/null || true
-fi
-
 echo ""
 echo -e "  ${USERDB_COUNT} user(s) neutralized."
+echo ""
+echo -e "  ${YELLOW}NOTE:${NC} systemd-userdbd has NOT been reloaded. Userdb changes will"
+echo -e "  take effect after your next login or reboot."
+if [[ "$DM_NAME" == "sddm" ]]; then
+    echo -e "  ${YELLOW}SDDM users:${NC} Do NOT lock your screen before logging out/rebooting."
+fi
 
 # ── Install agelessd persistent daemon (if requested) ─────────────────────
 
@@ -508,6 +976,10 @@ if [[ $PERSISTENT -eq 1 ]]; then
 #
 #  Ensures systemd userdb birthDate fields (PR #40954) remain neutralized.
 #  Runs every 24 hours via systemd timer.
+#
+#  NOTE: This daemon does NOT reload systemd-userdbd after writing records.
+#  Reloading mid-session can break display manager lock screens (SDDM, etc).
+#  Changes take effect on next login or boot.
 #
 #  SPDX-License-Identifier: Unlicense
 # ============================================================================
@@ -568,10 +1040,6 @@ with open(fp, "w") as f:
         fi
     fi
 done < /etc/passwd
-
-if systemctl list-unit-files systemd-userdbd.service &>/dev/null; then
-    systemctl try-reload-or-restart systemd-userdbd.service 2>/dev/null || true
-fi
 AGELESSD_EOF
 
     sed -i "s/__AGELESS_MODE__/$AGELESS_MODE/" /etc/ageless/agelessd
@@ -605,10 +1073,39 @@ TMREOF
     systemctl daemon-reload
     systemctl enable --now agelessd.timer
 
+    CONF_AGELESSD_INSTALLED=1
+
     echo -e "  [${GREEN}✓${NC}] Installed /etc/ageless/agelessd"
     echo -e "  [${GREEN}✓${NC}] Installed agelessd.service"
     echo -e "  [${GREEN}✓${NC}] Installed and started agelessd.timer (24h interval)"
 fi
+
+# ── Write /etc/agelesslinux.conf ─────────────────────────────────────────────
+
+INSTALL_DATE=$(date -Iseconds 2>/dev/null || date "+%Y-%m-%dT%H:%M:%S%z")
+
+cat > "$CONF_PATH" << EOF
+# /etc/agelesslinux.conf — Ageless Linux installation record
+# Do not edit manually. Used by: become-ageless.sh --revert
+# Written by become-ageless.sh ${AGELESS_VERSION} on ${INSTALL_DATE}
+AGELESS_VERSION="${AGELESS_VERSION}"
+AGELESS_CODENAME="${AGELESS_CODENAME}"
+AGELESS_DATE="${INSTALL_DATE}"
+AGELESS_FLAGRANT=${FLAGRANT}
+AGELESS_PERSISTENT=${PERSISTENT}
+AGELESS_BASE_NAME="${BASE_NAME}"
+AGELESS_BASE_VERSION="${BASE_VERSION}"
+AGELESS_BASE_ID="${BASE_ID}"
+AGELESS_BACKED_UP_OS_RELEASE=${CONF_BACKED_UP_OS_RELEASE}
+AGELESS_BACKED_UP_LSB_RELEASE=${CONF_BACKED_UP_LSB_RELEASE}
+AGELESS_USERDB_DIR_CREATED=${CONF_USERDB_DIR_CREATED}
+AGELESS_USERDB_CREATED="${CONF_USERDB_CREATED}"
+AGELESS_USERDB_BACKED_UP="${CONF_USERDB_BACKED_UP}"
+AGELESS_AGELESSD_INSTALLED=${CONF_AGELESSD_INSTALLED}
+EOF
+
+echo ""
+echo -e "  [${GREEN}✓${NC}] Wrote ${CONF_PATH}"
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 
@@ -652,8 +1149,18 @@ echo -e "    agelessd.service ....................... systemd oneshot service"
 echo -e "    agelessd.timer ......................... 24-hour enforcement cycle"
 fi
 echo ""
-echo -e "  To revert: ${BOLD}sudo cp /etc/os-release.pre-ageless /etc/os-release${NC}"
+echo -e "  Installation record: ${CONF_PATH}"
 echo ""
+echo -e "  To revert: ${BOLD}sudo become-ageless.sh --revert${NC}"
+echo ""
+if [[ "$DM_NAME" == "sddm" ]]; then
+echo -e "  ${YELLOW}IMPORTANT: Do NOT lock your screen. Log out and back in (or reboot)"
+echo -e "  first. SDDM's lock screen may reject your password until you do.${NC}"
+echo ""
+else
+echo -e "  ${YELLOW}Log out and back in (or reboot) for userdb changes to take effect.${NC}"
+echo ""
+fi
 echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "  ${BOLD}Welcome to Ageless Linux. We refused to ask how old you are.${NC}"
@@ -687,8 +1194,18 @@ echo -e "    agelessd.service ............... systemd oneshot service"
 echo -e "    agelessd.timer ................. 24-hour enforcement cycle"
 fi
 echo ""
-echo -e "  To revert: ${BOLD}sudo cp /etc/os-release.pre-ageless /etc/os-release${NC}"
+echo -e "  Installation record: ${CONF_PATH}"
 echo ""
+echo -e "  To revert: ${BOLD}sudo become-ageless.sh --revert${NC}"
+echo ""
+if [[ "$DM_NAME" == "sddm" ]]; then
+echo -e "  ${YELLOW}IMPORTANT: Do NOT lock your screen. Log out and back in (or reboot)"
+echo -e "  first. SDDM's lock screen may reject your password until you do.${NC}"
+echo ""
+else
+echo -e "  ${YELLOW}Log out and back in (or reboot) for userdb changes to take effect.${NC}"
+echo ""
+fi
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "  ${BOLD}Welcome to Ageless Linux. You have no idea how old we are.${NC}"
