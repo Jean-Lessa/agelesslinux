@@ -49,7 +49,7 @@ execute_agelessd() {
 #  Runs every 24 hours via systemd timer.
 #
 #  NOTE: This daemon does NOT reload systemd-userdbd after writing records.
-#  Reloading mid-session can break display manager lock screens (SDDM, etc).
+#  Reloading mid-session can break display manager lock screens (SDDM, LightDM, etc).
 #  Changes take effect on next login or boot.
 #
 #  SPDX-License-Identifier: Unlicense

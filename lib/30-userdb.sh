@@ -9,9 +9,10 @@
 #    user resolution.
 #
 #    NOTE: We do NOT reload systemd-userdbd after creating drop-in records.
-#    Reloading mid-session causes display managers (especially SDDM) to lose
-#    the ability to verify passwords on the lock screen. The drop-in records
-#    are picked up automatically on next boot or login.
+#    Creating or reloading drop-in records mid-session causes display managers
+#    (SDDM, LightDM, and potentially others) to lose the ability to verify
+#    passwords on the lock screen. The drop-in records are picked up
+#    automatically on next boot or login.
 
 analyze_userdb() {
     # Detect systemd
@@ -225,8 +226,8 @@ with open(fp, "w") as f:
     echo ""
     echo -e "  ${YELLOW}NOTE:${NC} systemd-userdbd has NOT been reloaded. Userdb changes will"
     echo -e "  take effect after your next login or reboot."
-    if [[ "$DM_NAME" == "sddm" ]]; then
-        echo -e "  ${YELLOW}SDDM users:${NC} Do NOT lock your screen before logging out/rebooting."
+    if [[ "$DM_NAME" != "unknown" ]]; then
+        echo -e "  ${YELLOW}WARNING:${NC} Do NOT lock your screen before logging out/rebooting."
     fi
 }
 
