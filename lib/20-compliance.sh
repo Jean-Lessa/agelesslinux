@@ -3,9 +3,12 @@
 plan_compliance() {
     if [[ $FLAGRANT -eq 1 ]]; then
         plan_action "${I18N_20_CREATE_COMPLIANCE_FLAGRANT}"
+        plan_action "${I18N_20_CREATE_COMPLIANCE_FLAGRANT_PTBR}"
         plan_action "${I18N_20_CREATE_REFUSAL}"
+        plan_action "${I18N_20_CREATE_REFUSAL_PTBR}"
     else
         plan_action "${I18N_20_CREATE_COMPLIANCE_STANDARD}"
+        plan_action "${I18N_20_CREATE_COMPLIANCE_STANDARD_PTBR}"
         plan_action "${I18N_20_CREATE_API_STUB}"
     fi
 }
@@ -178,6 +181,7 @@ cat > /etc/ageless/l15211-compliance.txt << 'BREOF'
 BREOF
     fi
     echo -e "  [${GREEN}✓${NC}] ${I18N_20_CREATED_COMPLIANCE}"
+    echo -e "  [${GREEN}✓${NC}] ${I18N_20_CREATED_COMPLIANCE_PTBR}"
 
     # Age verification API or REFUSAL
     if [[ $FLAGRANT -eq 1 ]]; then

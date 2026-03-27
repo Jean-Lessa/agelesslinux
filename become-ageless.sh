@@ -130,11 +130,15 @@ set_lang() {
     I18N_10_SUMMARY_OSRELEASE_PREAGELESS="Original OS identity (backup)"
 
     I18N_20_CREATE_COMPLIANCE_FLAGRANT="Create /etc/ageless/ab1043-compliance.txt (flagrant)"
+    I18N_20_CREATE_COMPLIANCE_FLAGRANT_PTBR="Create /etc/ageless/l15211-compliance.txt (flagrant)"
     I18N_20_CREATE_REFUSAL="Create /etc/ageless/REFUSAL (machine-readable refusal)"
+    I18N_20_CREATE_REFUSAL_PTBR="Create /etc/ageless/REFUSAL-PTBR (machine-readable refusal)"
     I18N_20_CREATE_COMPLIANCE_STANDARD="Create /etc/ageless/ab1043-compliance.txt"
+    I18N_20_CREATE_COMPLIANCE_STANDARD_PTBR="Create /etc/ageless/l15211-compliance.txt"
     I18N_20_CREATE_API_STUB="Create /etc/ageless/age-verification-api.sh (nonfunctional stub)"
     I18N_20_CREATED_COMPLIANCE="Created /etc/ageless/ab1043-compliance.txt"
-    I18N_20_INSTALLED_REFUSAL="Installed REFUSAL notice (no API provided, by design)"
+    I18N_20_CREATED_COMPLIANCE_PTBR="Created /etc/ageless/l15211-compliance.txt"
+    I18N_20_INSTALLED_REFUSAL="Installed REFUSAL notices (no API provided, by design)"
     I18N_20_SKIPPED_API_STUB="Age verification API deliberately not installed"
     I18N_20_INSTALLED_API_STUB="Installed age verification API (nonfunctional, as intended)"
     I18N_20_REMOVED_AGELESS="Removed /etc/ageless"
@@ -349,11 +353,15 @@ set_lang() {
     I18N_10_SUMMARY_OSRELEASE_PREAGELESS="Identidade original do sistema (backup)"
 
     I18N_20_CREATE_COMPLIANCE_FLAGRANT="Criar /etc/ageless/ab1043-compliance.txt (flagrante)"
+    I18N_20_CREATE_COMPLIANCE_FLAGRANT_PTBR="Criar /etc/ageless/l15211-compliance.txt (flagrante)"
     I18N_20_CREATE_REFUSAL="Criar /etc/ageless/REFUSAL (recusa legível por máquina)"
+    I18N_20_CREATE_REFUSAL_PTBR="Criar /etc/ageless/REFUSAL-PTBR (recusa legível por máquina)"
     I18N_20_CREATE_COMPLIANCE_STANDARD="Criar /etc/ageless/ab1043-compliance.txt"
+    I18N_20_CREATE_COMPLIANCE_STANDARD_PTBR="Criar /etc/ageless/l15211-compliance.txt"
     I18N_20_CREATE_API_STUB="Criar /etc/ageless/age-verification-api.sh (stub não-funcional)"
     I18N_20_CREATED_COMPLIANCE="Criado /etc/ageless/ab1043-compliance.txt"
-    I18N_20_INSTALLED_REFUSAL="Instalado o aviso de REFUSAL (nenhuma API providenciada, por design)"
+    I18N_20_CREATED_COMPLIANCE_PTBR="Criado /etc/ageless/l15211-compliance.txt"
+    I18N_20_INSTALLED_REFUSAL="Instalados os avisos de RECUSA (nenhuma API providenciada, por design)"
     I18N_20_SKIPPED_API_STUB="API de verificação de idade deliberadamente não instalada"
     I18N_20_INSTALLED_API_STUB="API de verificação de idade instalada (não-funcional, como deveria ser)"
     I18N_20_REMOVED_AGELESS="Removido /etc/ageless"
@@ -676,9 +684,12 @@ summary_os_release() {
 plan_compliance() {
     if [[ $FLAGRANT -eq 1 ]]; then
         plan_action "${I18N_20_CREATE_COMPLIANCE_FLAGRANT}"
+        plan_action "${I18N_20_CREATE_COMPLIANCE_FLAGRANT_PTBR}"
         plan_action "${I18N_20_CREATE_REFUSAL}"
+        plan_action "${I18N_20_CREATE_REFUSAL_PTBR}"
     else
         plan_action "${I18N_20_CREATE_COMPLIANCE_STANDARD}"
+        plan_action "${I18N_20_CREATE_COMPLIANCE_STANDARD_PTBR}"
         plan_action "${I18N_20_CREATE_API_STUB}"
     fi
 }
@@ -851,6 +862,7 @@ cat > /etc/ageless/l15211-compliance.txt << 'BREOF'
 BREOF
     fi
     echo -e "  [${GREEN}✓${NC}] ${I18N_20_CREATED_COMPLIANCE}"
+    echo -e "  [${GREEN}✓${NC}] ${I18N_20_CREATED_COMPLIANCE_PTBR}"
 
     # Age verification API or REFUSAL
     if [[ $FLAGRANT -eq 1 ]]; then
