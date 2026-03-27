@@ -129,7 +129,7 @@ print_analysis() {
     echo -e "${BOLD}${I18N_99_SYSTEMANALYSIS}${NC}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    echo -e "  ${I18N_99_BASESYSTEM}:              ${CYAN}${BASE_NAME}${BASE_VERSION:+ $BASE_VERSION}${NC} (${BASE_ID})"
+    echo -e "  ${I18N_99_BASESYSTEM}:             ${CYAN}${BASE_NAME}${BASE_VERSION:+ $BASE_VERSION}${NC} (${BASE_ID})"
 
     # Display manager
     if [[ "$DM_NAME" != "unknown" ]]; then
@@ -172,7 +172,7 @@ print_analysis() {
         [[ -n "$user_list" ]] && user_list+=", "
         user_list+="${HUMAN_USERS[$i]} (${HUMAN_UIDS[$i]})"
     done
-    echo -e "  ${I18N_99_HUMANUSERS}:              ${user_list:-none}"
+    echo -e "  ${I18N_99_HUMANUSERS}:         ${user_list:-none}"
 
     # Existing userdb records for human users
     if [[ ${#USERDB_EXISTING[@]} -gt 0 ]]; then

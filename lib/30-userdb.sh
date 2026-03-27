@@ -17,6 +17,7 @@
 #    automatically on next boot or login.
 # ===========================================================================
 # [PT-BR]
+#
 #    O PR #40954 do systemd (merjado em 18/03/2026) adicionou um campo
 #    birthDate nos registros JSON. Este campo fomenta dados de idade ao
 #    xdg-desktop-portal para tornar possível restrições de idade a nível

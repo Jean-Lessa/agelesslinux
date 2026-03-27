@@ -28,7 +28,7 @@ plan_os_release() {
 
     if [[ -f /etc/lsb-release ]]; then
         if [[ ! -f /etc/lsb-release.pre-ageless ]]; then
-            plan_action "${I18N_BACKUP_LSBRELEASE}"
+            plan_action "${I18N_10_BACKUP_LSBRELEASE}"
         fi
         plan_action "${I18N_10_REWRITE_LSBRELEASE}"
     fi
@@ -76,7 +76,7 @@ AGELESS_AB1043_COMPLIANCE="${compliance_status}"
 AGELESS_AGE_VERIFICATION_API="${api_status}"
 AGELESS_AGE_VERIFICATION_STATUS="${verification_status}"
 EOF
-echo -e "  [${GREEN}✓${NC}] " "${I18N_10_WROTENEW_OSRELEASE}"
+echo -e "  [${GREEN}✓${NC}] ${I18N_10_WROTENEW_OSRELEASE}"
 
     # Write lsb-release if it exists
     if [[ -f /etc/lsb-release ]]; then
