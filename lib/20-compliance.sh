@@ -2,11 +2,11 @@
 
 plan_compliance() {
     if [[ $FLAGRANT -eq 1 ]]; then
-        plan_action "Create /etc/ageless/ab1043-compliance.txt (flagrant)"
-        plan_action "Create /etc/ageless/REFUSAL (machine-readable refusal)"
+        plan_action "${I18N_20_CREATE_COMPLIANCE_FLAGRANT}"
+        plan_action "${I18N_20_CREATE_REFUSAL}"
     else
-        plan_action "Create /etc/ageless/ab1043-compliance.txt"
-        plan_action "Create /etc/ageless/age-verification-api.sh (nonfunctional stub)"
+        plan_action "${I18N_20_CREATE_COMPLIANCE_STANDARD}"
+        plan_action "${I18N_20_CREATE_API_STUB}"
     fi
 }
 
@@ -96,7 +96,7 @@ cat > /etc/ageless/ab1043-compliance.txt << 'EOF'
 ═══════════════════════════════════════════════════════════════════════
 EOF
     fi
-    echo -e "  [${GREEN}✓${NC}] Created /etc/ageless/ab1043-compliance.txt"
+    echo -e "  [${GREEN}✓${NC}] ${I18N_20_CREATED_COMPLIANCE}"
 
     # Age verification API or REFUSAL
     if [[ $FLAGRANT -eq 1 ]]; then
@@ -118,8 +118,8 @@ this system is aware of their obligations under AB 1043 and has
 chosen not to comply. They would like you to fine them. It would
 make an excellent test case.
 REFEOF
-        echo -e "  [${RED}✓${NC}] Installed REFUSAL notice (no API provided, by design)"
-        echo -e "  [${RED}✗${NC}] Age verification API deliberately not installed"
+        echo -e "  [${RED}✓${NC}] ${I18N_20_INSTALLED_REFUSAL}"
+        echo -e "  [${RED}✗${NC}] ${I18N_20_SKIPPED_API_STUB}"
     else
 cat > /etc/ageless/age-verification-api.sh << 'APIEOF'
 #!/bin/bash
@@ -154,24 +154,24 @@ echo "Have a nice day."
 exit 1
 APIEOF
         chmod +x /etc/ageless/age-verification-api.sh
-        echo -e "  [${GREEN}✓${NC}] Installed age verification API (nonfunctional, as intended)"
+        echo -e "  [${GREEN}✓${NC}] ${I18N_20_INSTALLED_API_STUB}"
     fi
 }
 
 revert_compliance() {
     if [[ -d /etc/ageless ]]; then
         rm -rf /etc/ageless
-        echo -e "  [${GREEN}✓${NC}] Removed /etc/ageless/"
+        echo -e "  [${GREEN}✓${NC}] ${I18N_20_REMOVED_AGELESS}"
     fi
 }
 
 summary_compliance() {
     if [[ $FLAGRANT -eq 1 ]]; then
-        echo -e "    /etc/ageless/ab1043-compliance.txt ..... Noncompliance statement"
-        echo -e "    /etc/ageless/REFUSAL ................... Machine-readable refusal"
+        echo -e "    /etc/ageless/ab1043-compliance.txt ..... ${I18N_20_SUMMARY_COMPLIANCE}"
+        echo -e "    /etc/ageless/REFUSAL ................... ${I18N_20_SUMMARY_REFUSAL}"
         echo ""
-        echo -e "  Files deliberately NOT created:"
-        echo -e "    /etc/ageless/age-verification-api.sh ... ${RED}REFUSED${NC}"
+        echo -e "  ${I18N_20_SUMMARY_FILES_NOTCREATED}:"
+        echo -e "    /etc/ageless/age-verification-api.sh ... ${RED}${I18N_20_SUMMARY_REFUSED}${NC}"
     else
         echo -e "    /etc/ageless/ab1043-compliance.txt"
         echo -e "    /etc/ageless/age-verification-api.sh"

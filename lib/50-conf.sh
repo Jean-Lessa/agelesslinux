@@ -1,7 +1,7 @@
 # §§ CONF — /etc/agelesslinux.conf installation record
 
 plan_conf() {
-    plan_action "Write ${CONF_PATH} (installation record)"
+    plan_action "${I18N_50_WRITE} ${CONF_PATH} ${I18N_50_INSTALLATION_RECORD}"
 }
 
 write_conf() {
@@ -29,5 +29,5 @@ AGELESS_AGELESSD_INSTALLED=${CONF_AGELESSD_INSTALLED}
 EOF
 
     echo ""
-    echo -e "  [${GREEN}✓${NC}] Wrote ${CONF_PATH}"
+    echo -e "  [${GREEN}✓${NC}] ${I18N_50_WROTE} ${CONF_PATH}"
 }

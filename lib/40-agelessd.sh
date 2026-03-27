@@ -13,13 +13,13 @@ plan_agelessd() {
 
     if [[ $HAS_SYSTEMD -eq 0 ]]; then
         echo ""
-        echo -e "  ${RED}ERROR: --persistent requires systemd (not available on this system)${NC}"
+        echo -e "  ${RED}${I18N_40_SYSTEMD_NOT_AVAILABLE}${NC}"
         echo ""
         return
     fi
 
-    plan_action "Install /etc/ageless/agelessd (neutralization script)"
-    plan_action "Install agelessd.service and agelessd.timer (24h enforcement)"
+    plan_action "${I18N_40_INSTALL_AGELESSD}"
+    plan_action "${I18N_40_INSTALL_AGELESSD_SERVICE}"
 }
 
 execute_agelessd() {
@@ -28,7 +28,7 @@ execute_agelessd() {
     fi
 
     echo ""
-    echo -e "  ${BOLD}Installing agelessd persistent daemon...${NC}"
+    echo -e "  ${BOLD}${I18N_INSTALLING_AGELESSD}${NC}"
     echo ""
 
     local ageless_mode
@@ -146,9 +146,9 @@ TMREOF
 
     CONF_AGELESSD_INSTALLED=1
 
-    echo -e "  [${GREEN}✓${NC}] Installed /etc/ageless/agelessd"
-    echo -e "  [${GREEN}✓${NC}] Installed agelessd.service"
-    echo -e "  [${GREEN}✓${NC}] Installed and started agelessd.timer (24h interval)"
+    echo -e "  [${GREEN}✓${NC}] ${I18N_40_INSTALLED_AGELESSD}"
+    echo -e "  [${GREEN}✓${NC}] ${I18N_40_INSTALLED_AGELESSD_SERVICE}"
+    echo -e "  [${GREEN}✓${NC}] ${I18N_40_INSTALLED_AGELESSD_TIMER}"
 }
 
 revert_agelessd() {
@@ -157,7 +157,7 @@ revert_agelessd() {
         rm -f /etc/systemd/system/agelessd.service
         rm -f /etc/systemd/system/agelessd.timer
         systemctl daemon-reload 2>/dev/null || true
-        echo -e "  [${GREEN}✓${NC}] Removed agelessd service and timer"
+        echo -e "  [${GREEN}✓${NC}] ${I18N_40_REMOVED_AGELESSD_SERVICE}"
     fi
 }
 
@@ -167,8 +167,8 @@ summary_agelessd() {
     fi
 
     echo ""
-    echo -e "  Persistent daemon (agelessd):"
-    echo -e "    /etc/ageless/agelessd .......... Neutralization script"
-    echo -e "    agelessd.service ............... systemd oneshot service"
-    echo -e "    agelessd.timer ................. 24-hour enforcement cycle"
+    echo -e "  ${I18N_40_SUMMARY_BLURB}:"
+    echo -e "    /etc/ageless/agelessd .......... ${I18N_40_SUMMARY_FILEDESC1}"
+    echo -e "    agelessd.service ............... ${I18N_40_SUMMARY_FILEDESC2}"
+    echo -e "    agelessd.timer ................. ${I18N_40_SUMMARY_FILEDESC3}"
 }
