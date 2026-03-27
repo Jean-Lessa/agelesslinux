@@ -43,16 +43,28 @@ execute_agelessd() {
     cat > /etc/ageless/agelessd << 'AGELESSD_EOF'
 #!/bin/bash
 # ============================================================================
-#  agelessd — Ageless Linux birthDate Neutralization Daemon
+# [EN-US]
+# agelessd — Ageless Linux birthDate Neutralization Daemon
 #
-#  Ensures systemd userdb birthDate fields (PR #40954) remain neutralized.
-#  Runs every 24 hours via systemd timer.
+# Ensures systemd userdb birthDate fields (PR #40954) remain neutralized.
+# Runs every 24 hours via systemd timer.
 #
-#  NOTE: This daemon does NOT reload systemd-userdbd after writing records.
-#  Reloading mid-session can break display manager lock screens (SDDM, LightDM, etc).
-#  Changes take effect on next login or boot.
+# NOTE: This daemon does NOT reload systemd-userdbd after writing records.
+# Reloading mid-session can break display manager lock screens (SDDM, LightDM, etc).
+# Changes take effect on next login or boot.
+# ============================================================================
+# [PT-BR]
+# agelessd — Daemon de Neutralização de birthdate do Ageless Linux
 #
-#  SPDX-License-Identifier: Unlicense
+# Garante que os campos de birthDate do userdb do systemd (PR #40954)
+# permaneçam neutralizados. Roda a cada 24 horas via timer do systemd.
+#
+# NOTA: Este daemon NÃO recarrega o systemd-userdbd depois de escrever
+# os registros. Recarregar durante uma sessão pode quebrar as telas de
+# bloqueio do display manager (SDDM, LightDM, etc.).
+# As mudanças são aplicadas no próximo login ou boot.
+# ============================================================================
+# SPDX-License-Identifier: Unlicense
 # ============================================================================
 
 set -euo pipefail
