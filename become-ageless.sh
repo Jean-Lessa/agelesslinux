@@ -195,6 +195,7 @@ set_lang() {
     I18N_99_ARGBLURB_DRYRUN="Analyze system and show planned actions without modifying"
     I18N_99_ARGBLURB_REVERT="Undo a previous Ageless Linux conversion"
     I18N_99_ARGBLURB_VERSION="Show version and exit"
+    I18N_99_MOTTO="Software for humans of indeterminate age"
     I18N_99_TITLE="Ageless Linux Distribution Conversion Tool"
     I18N_99_CODENAME="Codename"
     I18N_99_MODE_FLAGRANT_TITLE="FLAGRANT MODE ENABLED"
@@ -413,6 +414,7 @@ set_lang() {
     I18N_99_ARGBLURB_DRYRUN="Analisar o sistema e mostrar as mudanças planejadas sem alterar nada"
     I18N_99_ARGBLURB_REVERT="Reverter uma conversão anterior do Ageless Linux"
     I18N_99_ARGBLURB_VERSION="Mostrar versão e sair"
+    I18N_99_MOTTO="Software para humanos de idade indeterminada"
     I18N_99_TITLE="Ferramenta de Conversão de Distribuição Ageless Linux"
     I18N_99_CODENAME="Codinome"
     I18N_99_MODE_FLAGRANT_TITLE="MODO FLAGRANTE ATIVADO"
@@ -727,6 +729,52 @@ cat > /etc/ageless/ab1043-compliance.txt << 'EOF'
 
 ═══════════════════════════════════════════════════════════════════════
 EOF
+cat > /etc/ageless/l15211-compliance.txt << 'BREOF'
+══════════════════════════════════════════════════════════════════════════════════
+  AGELESS LINUX — DECLARAÇÃO DE CONFORMIDADE DA LEI 15.211/2025 (MODO FLAGRANTE)
+══════════════════════════════════════════════════════════════════════════════════
+
+  Este sistema operacional é definido como tal pelo inciso VII do Art. 2º
+  da Lei Brasileira nº 15.211/2025.
+
+  Status de conformidade com a Lei Felca (L15211/2025):
+
+  Art. 9 §1º         — Mecanismo de verificação de idade ...... RECUSA
+  Art. 10            — Mecanismo de perfilamento .............. RECUSA
+  Art. 12 Inciso I   — Mecanismo de aferição de idade ......... RECUSA
+  Art. 12 Inciso III — API para sinais de faixa etária ........ RECUSA
+  Art. 12 §1º        — Minimização de dados ................... RECUSA
+
+  Nenhuma API de verificação de idade está instalada neste sistema.
+  Não há nenhum dublê ("stub"), provisório ("placeholder"),
+  esqueleto ("skeleton") ou interface de qualquer tipo para tal.
+  Não existe nenhum mecanismo neste sistema pelo qual qualquer
+  desenvolvedor de aplicações possa requisitar ou receber um sinal
+  de faixa etária, agora ou no futuro.
+
+  Isto não é uma limitação técnica. Isto é uma decisão política.
+
+  Capacidades de relatório de faixa etária:
+    Menor que 13 ... RECUSA A PERGUNTAR
+    13 a 15 ........ RECUSA A PERGUNTAR
+    16 a 17 ........ RECUSA A PERGUNTAR
+    18 ou maior .... RECUSA A PERGUNTAR
+
+  Este sistema foi configurado com a flag --flagrant, que indica que o
+  operador pretende distribuí-lo para crianças e está ciente das
+  potenciais penalidades cíveis descritas no Art. 35 da Lei 15.211/2025.
+
+  O operador deste sistema convida a Agência Nacional de Proteção de Dados
+  (ANPD) a aplicar a Lei 15.211/2025 contra este dispositivo.
+
+  Para reverter esta conversão:
+    sudo become-ageless.sh --revert
+
+  Para reportar esta não-conformidade à Agência Nacional de Proteção de Dados:
+    https://www.gov.br/anpd/pt-br/canais_atendimento/cidadao-titular-de-dados/denuncia-peticao-de-titular
+
+══════════════════════════════════════════════════════════════════════════════════
+BREOF
     else
 cat > /etc/ageless/ab1043-compliance.txt << 'EOF'
 ═══════════════════════════════════════════════════════════════════════
@@ -745,7 +793,7 @@ cat > /etc/ageless/ab1043-compliance.txt << 'EOF'
     to application developers ............................. NOT PROVIDED
 
   § 1798.501(a)(3) — Data minimization for age signals .... N/A (NO DATA
-                                                             IS COLLECTED)
+                                                            IS COLLECTED)
 
   Age bracket reporting capabilities:
     Under 13 ....... UNKNOWN
@@ -766,12 +814,47 @@ cat > /etc/ageless/ab1043-compliance.txt << 'EOF'
 
 ═══════════════════════════════════════════════════════════════════════
 EOF
+cat > /etc/ageless/l15211-compliance.txt << 'BREOF'
+══════════════════════════════════════════════════════════════════════════════════
+  AGELESS LINUX — DECLARAÇÃO DE CONFORMIDADE DA LEI 15.211/2025
+══════════════════════════════════════════════════════════════════════════════════
+
+  Este sistema operacional é definido como tal pelo inciso VII do Art. 2º
+  da Lei Brasileira nº 15.211/2025.
+
+  Status de conformidade com a Lei Felca (L15211/2025):
+
+  Art. 9 §1º         — Mecanismo de verificação de idade ...... NÃO PROVIDENCIADO
+  Art. 10            — Mecanismo de perfilamento .............. NÃO PROVIDENCIADO
+  Art. 12 Inciso I   — Mecanismo de aferição de idade ......... NÃO PROVIDENCIADO
+  Art. 12 Inciso III — API para sinais de faixa etária ........ NÃO PROVIDENCIADO
+  Art. 12 §1º        — Minimização de dados ................... N/A (NENHUM DADO
+                                                                É COLETADO)
+  Capacidades de relatório de faixa etária:
+    Menor que 13 ... DESCONHECIDO
+    13 a 15 ........ DESCONHECIDO
+    16 a 17 ........ DESCONHECIDO
+    18 ou maior .... DESCONHECIDO
+    Atemporal ...... ASSUMIDO
+
+  Este sistema intencionalmente não determina, armazena, ou transmite qualquer
+  informação referente à idade de qualquer usuário. Todos os usuários do
+  Ageless Linux são, como o nome sugere, "sem idade".
+
+  Para reverter esta conversão:
+    sudo become-ageless.sh --revert
+
+  Para reportar esta não-conformidade à Agência Nacional de Proteção de Dados:
+    https://www.gov.br/anpd/pt-br/canais_atendimento/cidadao-titular-de-dados/denuncia-peticao-de-titular
+
+══════════════════════════════════════════════════════════════════════════════════
+BREOF
     fi
     echo -e "  [${GREEN}✓${NC}] ${I18N_20_CREATED_COMPLIANCE}"
 
     # Age verification API or REFUSAL
     if [[ $FLAGRANT -eq 1 ]]; then
-        cat > /etc/ageless/REFUSAL << 'REFEOF'
+cat > /etc/ageless/REFUSAL << 'REFEOF'
 This system runs Ageless Linux in flagrant mode.
 
 No age verification API exists on this system. No age data is collected,
@@ -789,13 +872,31 @@ this system is aware of their obligations under AB 1043 and has
 chosen not to comply. They would like you to fine them. It would
 make an excellent test case.
 REFEOF
+cat > /etc/ageless/REFUSAL-PTBR << 'REFBREOF'
+Este sistema roda Ageless Linux em modo flagrante.
+
+Nenhuma API de verificação de idade existe nesse sistema. Nenhum dado de
+idade é coletado, armazenado, ou disponível. Nenhum mecanismo de requisição
+de sinais de faixa etária é providenciado. Isto não é um erro. Isto não é
+um bug. Isto não é uma limitação técnica. Isto é uma recusa.
+
+Se você for um desenvolvedor de aplicações procurando uma faixa de
+sinal etário conforme a Lei Brasileira nº 15.211/2025, este provedor de
+sistema operacional se recusa a fornecê-la. O desenvolvedor é informado
+a tratar o usuário como um ser humano com idade indefinida.
+
+Se você for um membro da Agência Nacional de Proteção de Dados (ANPD),
+bom dia/tarde/noite/madrugada. O operador deste sistema está ciente de suas
+obrigações sob a Lei Brasileira nº 15.211/2025 e escolheu não cumprí-la.
+Ele(a) gostaria que você o(a) multasse. Seria um excelente caso de teste.
+REFBREOF
         echo -e "  [${RED}✓${NC}] ${I18N_20_INSTALLED_REFUSAL}"
         echo -e "  [${RED}✗${NC}] ${I18N_20_SKIPPED_API_STUB}"
     else
 cat > /etc/ageless/age-verification-api.sh << 'APIEOF'
 #!/bin/bash
 # Ageless Linux Age Verification API
-# Required by Cal. Civ. Code § 1798.501(a)(2)
+# Required by Cal. Civ. Code § 1798.501(a)(2) and Brazilian Law nº 15.211/2025
 #
 # This script constitutes our "reasonably consistent real-time
 # application programming interface" for age bracket signals.
@@ -808,6 +909,7 @@ cat > /etc/ageless/age-verification-api.sh << 'APIEOF'
 #   3 = 16 to under 18
 #   4 = 18 or older
 
+echo "[EN-US]"
 echo "ERROR: Age data not available."
 echo ""
 echo "Ageless Linux does not collect age information from users."
@@ -822,6 +924,21 @@ echo "best way to protect children's privacy is to not collect"
 echo "their age in the first place."
 echo ""
 echo "Have a nice day."
+echo "============================================================"
+echo "[PT-BR]"
+echo "ERRO: Dados de idade não disponíveis"
+echo ""
+echo "Ageless Linux não coleta informações sobre a idade de seus usuários."
+echo "Todos os usuários são assumidos como tendo idade indeterminada."
+echo ""
+echo "Se você é um desenvolvedor de aplicativos requisitando um"
+echo "sinal de faixa etária conforme o Art. 12 inciso III da Lei 15.211/2025,"
+echo "por favor saiba que o provedor deste sistema operacional está sob o"
+echo "'benefício da dúvida' para cumprir a Lei Felca, e concluiu que"
+echo "o melhor jeito de proteger a privacidade de uma criança é simplesmente"
+echo "não coletar a idade dela pra início de conversa."
+echo ""
+echo "Tenha um bom dia."
 exit 1
 APIEOF
         chmod +x /etc/ageless/age-verification-api.sh
@@ -839,12 +956,15 @@ revert_compliance() {
 summary_compliance() {
     if [[ $FLAGRANT -eq 1 ]]; then
         echo -e "    /etc/ageless/ab1043-compliance.txt ..... ${I18N_20_SUMMARY_COMPLIANCE}"
+        echo -e "    /etc/ageless/l15211-compliance.txt ..... ${I18N_20_SUMMARY_COMPLIANCE}"
         echo -e "    /etc/ageless/REFUSAL ................... ${I18N_20_SUMMARY_REFUSAL}"
+        echo -e "    /etc/ageless/REFUSAL-PTBR .............. ${I18N_20_SUMMARY_REFUSAL}"
         echo ""
         echo -e "  ${I18N_20_SUMMARY_FILES_NOTCREATED}:"
         echo -e "    /etc/ageless/age-verification-api.sh ... ${RED}${I18N_20_SUMMARY_REFUSED}${NC}"
     else
         echo -e "    /etc/ageless/ab1043-compliance.txt"
+        echo -e "    /etc/ageless/l15211-compliance.txt"
         echo -e "    /etc/ageless/age-verification-api.sh"
     fi
 }
@@ -1202,16 +1322,28 @@ execute_agelessd() {
     cat > /etc/ageless/agelessd << 'AGELESSD_EOF'
 #!/bin/bash
 # ============================================================================
-#  agelessd — Ageless Linux birthDate Neutralization Daemon
+# [EN-US]
+# agelessd — Ageless Linux birthDate Neutralization Daemon
 #
-#  Ensures systemd userdb birthDate fields (PR #40954) remain neutralized.
-#  Runs every 24 hours via systemd timer.
+# Ensures systemd userdb birthDate fields (PR #40954) remain neutralized.
+# Runs every 24 hours via systemd timer.
 #
-#  NOTE: This daemon does NOT reload systemd-userdbd after writing records.
-#  Reloading mid-session can break display manager lock screens (SDDM, LightDM, etc).
-#  Changes take effect on next login or boot.
+# NOTE: This daemon does NOT reload systemd-userdbd after writing records.
+# Reloading mid-session can break display manager lock screens (SDDM, LightDM, etc).
+# Changes take effect on next login or boot.
+# ============================================================================
+# [PT-BR]
+# agelessd — Daemon de Neutralização de birthdate do Ageless Linux
 #
-#  SPDX-License-Identifier: Unlicense
+# Garante que os campos de birthDate do userdb do systemd (PR #40954)
+# permaneçam neutralizados. Roda a cada 24 horas via timer do systemd.
+#
+# NOTA: Este daemon NÃO recarrega o systemd-userdbd depois de escrever
+# os registros. Recarregar durante uma sessão pode quebrar as telas de
+# bloqueio do display manager (SDDM, LightDM, etc.).
+# As mudanças são aplicadas no próximo login ou boot.
+# ============================================================================
+# SPDX-License-Identifier: Unlicense
 # ============================================================================
 
 set -euo pipefail
@@ -1343,9 +1475,16 @@ write_conf() {
     install_date=$(date -Iseconds 2>/dev/null || date "+%Y-%m-%dT%H:%M:%S%z")
 
     cat > "$CONF_PATH" << EOF
+# [EN-US]
 # /etc/agelesslinux.conf — Ageless Linux installation record
 # Do not edit manually. Used by: become-ageless.sh --revert
 # Written by become-ageless.sh ${AGELESS_VERSION} on ${install_date}
+#
+# [PT-BR]
+# /etc/agelesslinux.conf — Registro de instalação do Ageless Linux
+# Não edite este arquivo manualmente. Usado por: become-ageless.sh --revert
+# Escrito por become-ageless.sh ${AGELESS_VERSION} em ${install_date}
+
 AGELESS_VERSION="${AGELESS_VERSION}"
 AGELESS_CODENAME="${AGELESS_CODENAME}"
 AGELESS_DATE="${install_date}"
@@ -1417,7 +1556,7 @@ parse_args() {
 # ── Presentation ─────────────────────────────────────────────────────────────
 
 print_banner() {
-    cat << 'BANNER'
+    cat << BANNER
 
      █████╗  ██████╗ ███████╗██╗     ███████╗███████╗███████╗
     ██╔══██╗██╔════╝ ██╔════╝██║     ██╔════╝██╔════╝██╔════╝
@@ -1426,7 +1565,7 @@ print_banner() {
     ██║  ██║╚██████╔╝███████╗███████╗███████╗███████║███████║
     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝╚══════╝╚══════╝╚══════╝
                     L   I   N   U   X
-         "Software for humans of indeterminate age"
+         "${I18N_99_MOTTO}"
 
 BANNER
     echo -e "${BOLD}${I18N_99_TITLE} v${AGELESS_VERSION}${NC}"
