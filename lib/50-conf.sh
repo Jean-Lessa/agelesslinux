@@ -9,9 +9,16 @@ write_conf() {
     install_date=$(date -Iseconds 2>/dev/null || date "+%Y-%m-%dT%H:%M:%S%z")
 
     cat > "$CONF_PATH" << EOF
+# [EN-US]
 # /etc/agelesslinux.conf — Ageless Linux installation record
 # Do not edit manually. Used by: become-ageless.sh --revert
 # Written by become-ageless.sh ${AGELESS_VERSION} on ${install_date}
+#
+# [PT-BR]
+# /etc/agelesslinux.conf — Registro de instalação do Ageless Linux
+# Não edite este arquivo manualmente. Usado por: become-ageless.sh --revert
+# Escrito por become-ageless.sh ${AGELESS_VERSION} em ${install_date}
+
 AGELESS_VERSION="${AGELESS_VERSION}"
 AGELESS_CODENAME="${AGELESS_CODENAME}"
 AGELESS_DATE="${install_date}"
